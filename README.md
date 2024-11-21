@@ -19,6 +19,7 @@ onde o usuario conseguira ter ma palma da mão uma relação de horas extras/fal
     controle se tem horas extras ou em falta no trabalho.
   )
 ### Para Futuro
-    Configurar o sistema para fazer sincronização dos dados salvos internamento do disposivo em um
+  
+  Configurar o sistema para fazer sincronização dos dados salvos internamento do disposivo em um
   banco de dados externo, como backup. Onde caso os dados do banco externo estejam mais atualizados
   o sistema faz a sincronia automatica para o banco interno.
