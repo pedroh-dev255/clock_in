@@ -1,6 +1,26 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart'; // Para manipulação de datas e formatação
+import 'package:intl/intl.dart';
+//import 'package:intl/intl_standalone.dart'; // Importar para usar initializeDateFormatting
 import '../db_helper.dart';
+
+
+
+
+void main() async {
+  // Inicializa a formatação de datas para a localidade desejada
+  WidgetsFlutterBinding.ensureInitialized(); // Necessário para inicializar o Flutter antes de chamar a função
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Relatórios de Ponto',
+      home: TelaPontosRegistrados(),
+    );
+  }
+}
 
 class TelaPontosRegistrados extends StatefulWidget {
   @override
@@ -9,15 +29,21 @@ class TelaPontosRegistrados extends StatefulWidget {
 
 class _TelaPontosRegistradosState extends State<TelaPontosRegistrados> {
   final DBHelper _dbHelper = DBHelper();
+  final ValueNotifier<List<String>> _diasDoMes = ValueNotifier([]);
 
   late Future<List<Map<String, dynamic>>> _futurePontos;
   int _mesSelecionado = DateTime.now().month;
   int _anoSelecionado = DateTime.now().year;
 
+  void _atualizarDiasDaSemana() {
+    _diasDoMes.value = _gerarDiasDoMes();
+  }
+
   @override
   void initState() {
     super.initState();
     _carregarPontos();
+    _atualizarDiasDaSemana(); // Atualiza os dias do mês ao iniciar
   }
 
   // Recarrega os pontos do banco
@@ -69,7 +95,7 @@ class _TelaPontosRegistradosState extends State<TelaPontosRegistrados> {
           content: Text("Tem certeza que deseja excluir o registro do dia $data?"),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
+ onPressed: () => Navigator.of(context).pop(false),
               child: const Text("Cancelar"),
             ),
             TextButton(
@@ -94,8 +120,6 @@ class _TelaPontosRegistradosState extends State<TelaPontosRegistrados> {
 
   @override
   Widget build(BuildContext context) {
-    final diasDoMes = _gerarDiasDoMes();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Relatórios de Ponto'),
@@ -125,6 +149,7 @@ class _TelaPontosRegistradosState extends State<TelaPontosRegistrados> {
                   onChanged: (novoMes) {
                     setState(() {
                       _mesSelecionado = novoMes!;
+                      _atualizarDiasDaSemana();
                       _carregarPontos();
                     });
                   },
@@ -141,6 +166,7 @@ class _TelaPontosRegistradosState extends State<TelaPontosRegistrados> {
                   onChanged: (novoAno) {
                     setState(() {
                       _anoSelecionado = novoAno!;
+                      _atualizarDiasDaSemana();
                       _carregarPontos();
                     });
                   },
@@ -150,66 +176,84 @@ class _TelaPontosRegistradosState extends State<TelaPontosRegistrados> {
           ),
           // Lista de registros
           Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _futurePontos,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            child: ValueListenableBuilder<List<String>>(
+              valueListenable: _diasDoMes,
+              builder: (context, diasDoMes, _) {
+                return FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _futurePontos,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
 
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Erro ao carregar os registros'));
-                }
+                    if (snapshot.hasError) {
+                      return const Center(child: Text('Erro ao carregar os registros'));
+                    }
 
-                final pontos = snapshot.data ?? [];
-                final registrosPorData = {for (var ponto in pontos) ponto['data']: ponto};
+                    final pontos = snapshot.data ?? [];
+                    final registrosPorData = {for (var ponto in pontos) ponto['data']: ponto};
 
-                return ListView.builder(
-                  itemCount: diasDoMes.length,
-                  itemBuilder: (context, index) {
-                    final dia = diasDoMes[index];
-                    final ponto = registrosPorData[dia];
-                    final horasTrabalhadas =
-                        ponto != null ? _calcularHorasTrabalhadas(ponto) : 0.0;
+                    return ListView.builder(
+                      itemCount: diasDoMes.length,
+                      itemBuilder: (context, index) {
+                        final dia = diasDoMes[index];
+                        final ponto = registrosPorData[dia];
+                        final horasTrabalhadas =
+                            ponto != null ? _calcularHorasTrabalhadas(ponto) : 0.0;
+                        final dataFormatada = DateFormat('dd/MM/yyyy').parse(dia);
+                        final diaSemana = DateFormat('EEEE', 'pt_BR').format(dataFormatada);
 
-                    return ListTile(
-                      title: Text(
-                        dia,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      subtitle: ponto != null
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Entrada: ${ponto['entrada'] ?? "-"}'),
-                                Text('Saída Intervalo: ${ponto['saida_intervalo'] ?? "-"}'),
-                                Text('Retorno Intervalo: ${ponto['retorno_intervalo'] ?? "-"}'),
-                                Text('Saída: ${ponto['saida'] ?? "-"}'),
-                              ],
-                            )
-                          : const Text("Sem registros"),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Horas trabalhadas
-                          Text(
-                            horasTrabalhadas.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 26,
-                              fontWeight: FontWeight.bold,
-                              color: horasTrabalhadas == 0
-                                  ? Colors.grey // Cinza para 0 horas trabalhadas
-                                  : (horasTrabalhadas >= 8.0 ? Colors.green : Colors.red),
-                            ),
+                        return ListTile(
+                          title: Row(
+                            children: [
+                              Text(
+                                dia,
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '($diaSemana)', 
+                                style: const TextStyle(fontSize: 14, color: Colors.grey),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 16),
-                          // Botão de deletar
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deletarRegistro(context, dia),
-                          ),
-                        ],
-                      ),
+                          subtitle: ponto != null
+                              ? Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Entrada: ${ponto['entrada'] ?? "-"}'),
+                                    Text('Saída Intervalo: ${ponto['saida_intervalo'] ?? "-"}'),
+                                    Text('Retorno Intervalo: ${ponto['retorno_intervalo'] ?? "-"}'),
+                                    Text('Saída: ${ponto['saida'] ?? "-"}'),
+                                  ],
+                                )
+                              : const Text("Sem registros"),
+                          trailing: diaSemana == 'domingo'
+                              ? null
+                              : Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Horas trabalhadas
+                                    Text(
+                                      horasTrabalhadas.toStringAsFixed(1),
+                                      style: TextStyle(
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.bold,
+                                        color: horasTrabalhadas == 0
+                                            ? Colors.grey // Cinza para 0 horas trabalhadas
+                                            : (horasTrabalhadas >= 8.0 ? Colors.green : Colors.red),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    // Botão de deletar
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _deletarRegistro(context, dia),
+                                    ),
+                                  ],
+                                ),
+                        );
+                      },
                     );
                   },
                 );

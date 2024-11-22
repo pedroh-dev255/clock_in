@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 import 'telas/principal.dart'; // Importando a TelaInicial
 import 'telas/manual.dart'; // Importando a TelaManual
 import 'telas/registros.dart';
+import 'telas/configuracoes.dart'; // Importando a Tela de Configurações
+
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Garante que o Flutter esteja completamente inicializado antes de qualquer operação assíncrona
-
-  runApp(const MyApp()); // Agora o runApp é chamado diretamente após garantir que a inicialização esteja completa
+  WidgetsFlutterBinding.ensureInitialized();
+  //await initializeDateFormatting('pt_BR', null);
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -16,8 +20,17 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Controle de Ponto',
       theme: ThemeData(
-        primarySwatch: Colors.blue
+        primarySwatch: Colors.blue,
       ),
+      localizationsDelegates: [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: [
+        const Locale('pt', ''), // Português
+        const Locale('en', ''), // Inglês
+      ],
       home: TelaPrincipal(), // Alterando para a TelaPrincipal com PageView
     );
   }
@@ -49,7 +62,20 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Controle de Ponto')),
+      appBar: AppBar(
+        title: const Text('Controle de Ponto'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => TelaConfiguracoes()),
+              );
+            },
+          ),
+        ],
+      ),
       body: PageView(
         controller: _pageController, // Controlador para navegação por deslize
         onPageChanged: (index) {
@@ -60,7 +86,7 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
         children: [
           TelaInicial(), // Tela inicial
           TelaManual(), // Tela manual
-          TelaPontosRegistrados(), // Placeholder para outras telas
+          TelaPontosRegistrados(), // Tela de registros
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
