@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../db_helper.dart';  // Importando o DBHelper
-
-
+import '../db_helper.dart'; // Importando o DBHelper
 
 class TelaManual extends StatefulWidget {
   const TelaManual({super.key});
@@ -23,7 +21,7 @@ class _TelaManualState extends State<TelaManual> {
   @override
   void initState() {
     super.initState();
-    _dbHelper = DBHelper();  // Inicializando o DBHelper aqui
+    _dbHelper = DBHelper(); // Inicializando o DBHelper aqui
     _entradaController.text = "08:00";
     _saidaIntervaloController.text = "11:00";
     _retornoIntervaloController.text = "13:00";
@@ -44,21 +42,46 @@ class _TelaManualState extends State<TelaManual> {
     }
   }
 
+  Future<void> _selecionarHorario(TextEditingController controller) async {
+    final TimeOfDay? horarioEscolhido = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (BuildContext context, Widget? child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+    if (horarioEscolhido != null) {
+      final String horarioFormatado =
+          horarioEscolhido.hour.toString().padLeft(2, '0') +
+              ':' +
+              horarioEscolhido.minute.toString().padLeft(2, '0');
+      setState(() {
+        controller.text = horarioFormatado;
+      });
+    }
+  }
+
   void _salvarHorario() async {
-    final String dataFormatada = DateFormat('yyyy-MM-dd').format(_dataSelecionada);
+    final String dataFormatada = DateFormat('dd/MM/yyyy').format(_dataSelecionada);
 
     final pontoExistente = await _dbHelper.obterPontoPorData(dataFormatada);
 
     if (pontoExistente == null) {
-      await _dbHelper.atualizarPonto(Ponto(
+      // Cria um novo registro caso não exista
+      await _dbHelper.adicionarPonto(Ponto(
         data: dataFormatada,
         entrada: _entradaController.text,
         saidaIntervalo: _saidaIntervaloController.text,
         retornoIntervalo: _retornoIntervaloController.text,
         saida: _saidaController.text,
       ));
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Ponto registrado para $dataFormatada")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Ponto registrado para $dataFormatada")));
     } else {
+      // Atualiza os horários
       await _dbHelper.atualizarPonto(Ponto(
         data: dataFormatada,
         entrada: _entradaController.text,
@@ -66,7 +89,8 @@ class _TelaManualState extends State<TelaManual> {
         retornoIntervalo: _retornoIntervaloController.text,
         saida: _saidaController.text,
       ));
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Ponto atualizado para $dataFormatada")));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Ponto atualizado para $dataFormatada")));
     }
   }
 
@@ -75,17 +99,42 @@ class _TelaManualState extends State<TelaManual> {
     return Scaffold(
       appBar: AppBar(title: const Text('Registro Manual')),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0), // Padding horizontal
         child: Column(
           children: [
             ElevatedButton(
               onPressed: _selecionarData,
               child: Text('Selecionar Data: ${DateFormat('dd/MM/yyyy').format(_dataSelecionada)}'),
             ),
-            TextField(controller: _entradaController, decoration: const InputDecoration(labelText: 'Entrada')),
-            TextField(controller: _saidaIntervaloController, decoration: const InputDecoration(labelText: 'Saída Intervalo')),
-            TextField(controller: _retornoIntervaloController, decoration: const InputDecoration(labelText: 'Retorno Intervalo')),
-            TextField(controller: _saidaController, decoration: const InputDecoration(labelText: 'Saída')),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _entradaController,
+              decoration: const InputDecoration(labelText: 'Entrada'),
+              readOnly: true, // Desabilita a edição manual
+              onTap: () => _selecionarHorario(_entradaController),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _saidaIntervaloController,
+              decoration: const InputDecoration(labelText: 'Saída Intervalo'),
+              readOnly: true, // Desabilita a edição manual
+              onTap: () => _selecionarHorario(_saidaIntervaloController),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _retornoIntervaloController,
+              decoration: const InputDecoration(labelText: 'Retorno Intervalo'),
+              readOnly: true, // Desabilita a edição manual
+              onTap: () => _selecionarHorario(_retornoIntervaloController),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _saidaController,
+              decoration: const InputDecoration(labelText: 'Saída'),
+              readOnly: true, // Desabilita a edição manual
+              onTap: () => _selecionarHorario(_saidaController),
+            ),
+            const SizedBox(height: 16),
             ElevatedButton(onPressed: _salvarHorario, child: const Text('Salvar Horário')),
           ],
         ),

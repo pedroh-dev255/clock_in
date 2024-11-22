@@ -49,7 +49,7 @@ class DBHelper {
         await db.execute('''
           CREATE TABLE pontos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            data TEXT UNIQUE NOT NULL,
+            data TEXT NOT NULL,
             entrada TEXT NOT NULL,
             saida_intervalo TEXT,
             retorno_intervalo TEXT,

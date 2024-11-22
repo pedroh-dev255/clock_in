@@ -25,17 +25,68 @@ class _TelaInicialState extends State<TelaInicial> {
     String hora = _horarioController.text;
     String data = DateFormat('dd/MM/yyyy').format(DateTime.now());
 
-    // Salvando o horário no banco de dados
-    await _dbHelper.adicionarPonto(Ponto(
-      data: data,
-      entrada: hora,
-      saidaIntervalo: null,
-      retornoIntervalo: null,
-      saida: null,
-    ));
+    // Obtém o ponto existente para a data atual
+    final pontoExistente = await _dbHelper.obterPontoPorData(data);
 
+    if (pontoExistente == null) {
+      // Cria um novo registro caso não exista
+      await _dbHelper.adicionarPonto(Ponto(
+        data: data,
+        entrada: hora,
+        saidaIntervalo: null,
+        retornoIntervalo: null,
+        saida: null,
+      ));
+    } else {
+      // Cria uma cópia mutável do ponto existente
+      final pontoAtualizado = {
+        'data': pontoExistente['data'],
+        'entrada': pontoExistente['entrada'],
+        'saida_intervalo': pontoExistente['saida_intervalo'],
+        'retorno_intervalo': pontoExistente['retorno_intervalo'],
+        'saida': pontoExistente['saida'],
+      };
 
-    // Exibindo uma mensagem de confirmação
+      // Atualiza o horário disponível na ordem correta
+      if (pontoAtualizado['saida_intervalo'] == null) {
+        pontoAtualizado['saida_intervalo'] = hora;
+      } else if (pontoAtualizado['retorno_intervalo'] == null) {
+        pontoAtualizado['retorno_intervalo'] = hora;
+      } else if (pontoAtualizado['saida'] == null) {
+        pontoAtualizado['saida'] = hora;
+      } else {
+        // Todos os horários já foram preenchidos
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Erro"),
+              content: const Text("Todos os horários para o dia já foram preenchidos."),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('Fechar'),
+                ),
+              ],
+            );
+          },
+        );
+        return;
+      }
+
+      // Atualiza o ponto no banco de dados
+      await _dbHelper.atualizarPonto(Ponto(
+        data: pontoAtualizado['data'],
+        entrada: pontoAtualizado['entrada'],
+        saidaIntervalo: pontoAtualizado['saida_intervalo'],
+        retornoIntervalo: pontoAtualizado['retorno_intervalo'],
+        saida: pontoAtualizado['saida'],
+      ));
+    }
+
+    // Mensagem de confirmação
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -61,27 +112,32 @@ class _TelaInicialState extends State<TelaInicial> {
 
     Future.delayed(const Duration(minutes: 15), () {
       setState(() {
-        _isButtonDisabled = false; // Habilitar o botão após 15 minutos
+        _isButtonDisabled = false;
       });
     });
   }
 
+
+
   Future<void> _mostrarTimePicker() async {
-    TimeOfDay? pickedTime = await showTimePicker(
+    final TimeOfDay? horarioEscolhido = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
-    if (pickedTime != null) {
+    if (horarioEscolhido != null) {
       setState(() {
+        // Converte TimeOfDay para DateTime
         final now = DateTime.now();
         final selectedTime = DateTime(
           now.year,
           now.month,
           now.day,
-          pickedTime.hour,
-          pickedTime.minute,
+          horarioEscolhido.hour,
+          horarioEscolhido.minute,
         );
+
+        // Atualiza o campo de texto com o horário no formato 24h
         _horarioController.text = DateFormat('HH:mm').format(selectedTime);
       });
     }
@@ -93,40 +149,43 @@ class _TelaInicialState extends State<TelaInicial> {
       appBar: AppBar(
         title: const Text('Registrar Ponto'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            GestureDetector(
-              onTap: _mostrarTimePicker,
-              child: AbsorbPointer(
-                child: SizedBox(
-                  width: 200,
-                  child: TextField(
-                    controller: _horarioController,
-                    keyboardType: TextInputType.datetime,
-                    decoration: const InputDecoration(
-                      labelText: 'Horário',
-                      border: OutlineInputBorder(),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center, // Centraliza verticalmente
+            crossAxisAlignment: CrossAxisAlignment.center, // Centraliza horizontalmente
+            children: [
+              GestureDetector(
+                onTap: _mostrarTimePicker,
+                child: AbsorbPointer(
+                  child: SizedBox(
+                    width: 200,
+                    child: TextField(
+                      controller: _horarioController,
+                      keyboardType: TextInputType.datetime,
+                      decoration: const InputDecoration(
+                        labelText: 'Horário',
+                        border: OutlineInputBorder(),
+                      ),
+                      readOnly: true,
                     ),
-                    readOnly: true,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isButtonDisabled ? null : _registrarHorario,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _isButtonDisabled ? null : _registrarHorario,
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                ),
+                child: Text(
+                  'Registrar Ponto',
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
-              child: Text(
-                'Registrar Ponto',
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
