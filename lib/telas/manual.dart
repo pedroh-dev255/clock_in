@@ -22,10 +22,19 @@ class _TelaManualState extends State<TelaManual> {
   void initState() {
     super.initState();
     _dbHelper = DBHelper(); // Inicializando o DBHelper aqui
-    _entradaController.text = "08:00";
-    _saidaIntervaloController.text = "11:00";
-    _retornoIntervaloController.text = "13:00";
-    _saidaController.text = "18:00";
+    _carregarHorariosPadrao();
+  }
+
+  Future<void> _carregarHorariosPadrao() async {
+    final configuracoes = await _dbHelper.obterConfiguracoes();
+    if (configuracoes != null) {
+      setState(() {
+        _entradaController.text = configuracoes.entradaPadraoSemana;
+        _saidaIntervaloController.text = configuracoes.saidaIntervaloPadraoSemana;
+        _retornoIntervaloController.text = configuracoes.retornoIntervaloPadraoSemana;
+        _saidaController.text = configuracoes.saidaPadraoSemana;
+      });
+    }
   }
 
   Future<void> _selecionarData() async {
@@ -38,6 +47,14 @@ class _TelaManualState extends State<TelaManual> {
     if (dataEscolhida != null && dataEscolhida != _dataSelecionada) {
       setState(() {
         _dataSelecionada = dataEscolhida;
+        // Quando o dia for sábado, limpa os campos de intervalo
+        if (_dataSelecionada.weekday == DateTime.saturday) {
+          _saidaIntervaloController.clear();
+          _retornoIntervaloController.clear();
+        } else {
+          // Se não for sábado, mantém os valores padrões
+          _carregarHorariosPadrao();
+        }
       });
     }
   }
@@ -74,8 +91,8 @@ class _TelaManualState extends State<TelaManual> {
       await _dbHelper.adicionarPonto(Ponto(
         data: dataFormatada,
         entrada: _entradaController.text,
-        saidaIntervalo: _saidaIntervaloController.text,
-        retornoIntervalo: _retornoIntervaloController.text,
+        saidaIntervalo: _saidaIntervaloController.text.isEmpty ? null : _saidaIntervaloController.text,
+        retornoIntervalo: _retornoIntervaloController.text.isEmpty ? null : _retornoIntervaloController.text,
         saida: _saidaController.text,
       ));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -85,8 +102,8 @@ class _TelaManualState extends State<TelaManual> {
       await _dbHelper.atualizarPonto(Ponto(
         data: dataFormatada,
         entrada: _entradaController.text,
-        saidaIntervalo: _saidaIntervaloController.text,
-        retornoIntervalo: _retornoIntervaloController.text,
+        saidaIntervalo: _saidaIntervaloController.text.isEmpty ? null : _saidaIntervaloController.text,
+        retornoIntervalo: _retornoIntervaloController.text.isEmpty ? null : _retornoIntervaloController.text,
         saida: _saidaController.text,
       ));
       ScaffoldMessenger.of(context).showSnackBar(
@@ -114,20 +131,23 @@ class _TelaManualState extends State<TelaManual> {
               onTap: () => _selecionarHorario(_entradaController),
             ),
             const SizedBox(height: 16),
-            TextField(
-              controller: _saidaIntervaloController,
-              decoration: const InputDecoration(labelText: 'Saída Intervalo'),
-              readOnly: true, // Desabilita a edição manual
-              onTap: () => _selecionarHorario(_saidaIntervaloController),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _retornoIntervaloController,
-              decoration: const InputDecoration(labelText: 'Retorno Intervalo'),
-              readOnly: true, // Desabilita a edição manual
-              onTap: () => _selecionarHorario(_retornoIntervaloController),
-            ),
-            const SizedBox(height: 16),
+            // Se for sábado, deixa os campos de intervalo em branco
+            if (_dataSelecionada.weekday != DateTime.saturday) ...[
+              TextField(
+                controller: _saidaIntervaloController,
+                decoration: const InputDecoration(labelText: 'Saída Intervalo'),
+                readOnly: true, // Desabilita a edição manual
+                onTap: () => _selecionarHorario(_saidaIntervaloController),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _retornoIntervaloController,
+                decoration: const InputDecoration(labelText: 'Retorno Intervalo'),
+                readOnly: true, // Desabilita a edição manual
+                onTap: () => _selecionarHorario(_retornoIntervaloController),
+              ),
+              const SizedBox(height: 16),
+            ],
             TextField(
               controller: _saidaController,
               decoration: const InputDecoration(labelText: 'Saída'),
