@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../db_helper.dart';  // Importando o DBHelper
 
+
+
 class TelaManual extends StatefulWidget {
   const TelaManual({super.key});
 
@@ -48,18 +50,22 @@ class _TelaManualState extends State<TelaManual> {
     final pontoExistente = await _dbHelper.obterPontoPorData(dataFormatada);
 
     if (pontoExistente == null) {
-      await _dbHelper.adicionarPonto(dataFormatada,
-          _entradaController.text,
-          _saidaIntervaloController.text,
-          _retornoIntervaloController.text,
-          _saidaController.text);
+      await _dbHelper.atualizarPonto(Ponto(
+        data: dataFormatada,
+        entrada: _entradaController.text,
+        saidaIntervalo: _saidaIntervaloController.text,
+        retornoIntervalo: _retornoIntervaloController.text,
+        saida: _saidaController.text,
+      ));
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Ponto registrado para $dataFormatada")));
     } else {
-      await _dbHelper.atualizarPonto(dataFormatada,
-          _entradaController.text,
-          _saidaIntervaloController.text,
-          _retornoIntervaloController.text,
-          _saidaController.text);
+      await _dbHelper.atualizarPonto(Ponto(
+        data: dataFormatada,
+        entrada: _entradaController.text,
+        saidaIntervalo: _saidaIntervaloController.text,
+        retornoIntervalo: _retornoIntervaloController.text,
+        saida: _saidaController.text,
+      ));
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Ponto atualizado para $dataFormatada")));
     }
   }

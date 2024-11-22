@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'telas/principal.dart'; // Importando a TelaInicial
 import 'telas/manual.dart'; // Importando a TelaManual
 import 'telas/registros.dart';
-import 'db_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Garante que o Flutter esteja completamente inicializado antes de qualquer operação assíncrona
@@ -16,7 +15,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Controle de Ponto',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: ThemeData(
+        primarySwatch: Colors.blue
+      ),
       home: TelaPrincipal(), // Alterando para a TelaPrincipal com PageView
     );
   }
@@ -38,7 +39,11 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     setState(() {
       _currentIndex = index;
     });
-    _pageController.jumpToPage(index); // Navega para a página selecionada
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override

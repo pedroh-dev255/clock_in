@@ -1,66 +1,82 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-class DBHelper {
-  late Database _db;
+class Ponto {
+  String data;
+  String? entrada;
+  String? saidaIntervalo;
+  String? retornoIntervalo;
+  String? saida;
 
-  DBHelper() {
-    _initDB(); // Chama o método assíncrono no construtor
+  Ponto({
+    required this.data,
+    this.entrada,
+    this.saidaIntervalo,
+    this.retornoIntervalo,
+    this.saida,
+  });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'data': data,
+      'entrada': entrada,
+      'saida_intervalo': saidaIntervalo,
+      'retorno_intervalo': retornoIntervalo,
+      'saida': saida,
+    };
   }
+}
 
-  // Acesse o banco de dados de forma segura
+
+
+class DBHelper {
+  Database? _db;
+
   Future<Database> get db async {
-    return _db;
+    if (_db == null) {
+      _db = await _initDB();
+    }
+    return _db!;
   }
 
   // Método que inicializa o banco de dados
-  Future<void> _initDB() async {
+  Future<Database> _initDB() async {
     String path = await getDatabasesPath();
-    _db = await openDatabase(
+    return await openDatabase(
       join(path, 'pontos.db'),
-      onCreate: (db, version) async {
-        await db.execute('''CREATE TABLE pontos (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            data DATE,
-            entrada TIME,
-            saida_intervalo TIME,
-            retorno_intervalo TIME,
-            saida TIME
-        )''');
-      },
       version: 1,
-    );
-  }
-
-  // Método para adicionar ponto no banco de dados
-  Future<void> adicionarPonto(String data, String entrada, String? saidaIntervalo, String? retornoIntervalo, String? saida) async {
-    final dbClient = await db;
-    await dbClient.insert(
-      'pontos',
-      {
-        'data': data,
-        'entrada': entrada,
-        'saida_intervalo': saidaIntervalo,
-        'retorno_intervalo': retornoIntervalo,
-        'saida': saida,
+      onCreate: (db, version) async {
+        await db.execute('''
+          CREATE TABLE pontos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            data TEXT UNIQUE NOT NULL,
+            entrada TEXT NOT NULL,
+            saida_intervalo TEXT,
+            retorno_intervalo TEXT,
+            saida TEXT
+          )
+        ''');
       },
-      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 
-  // Método para atualizar ponto no banco de dados
-  Future<void> atualizarPonto(String data, String? entrada, String? saidaIntervalo, String? retornoIntervalo, String? saida) async {
+  Future<void> adicionarPonto(Ponto ponto) async {
+  final dbClient = await db;
+  await dbClient.insert(
+    'pontos',
+    ponto.toMap(),
+    conflictAlgorithm: ConflictAlgorithm.replace,
+  );
+}
+
+  Future<void> atualizarPonto(Ponto ponto) async {
     final dbClient = await db;
+
     await dbClient.update(
       'pontos',
-      {
-        'entrada': entrada,
-        'saida_intervalo': saidaIntervalo,
-        'retorno_intervalo': retornoIntervalo,
-        'saida': saida,
-      },
+      ponto.toMap(),
       where: 'data = ?',
-      whereArgs: [data],
+      whereArgs: [ponto.data],
     );
   }
 
@@ -72,16 +88,12 @@ class DBHelper {
       where: 'data = ?',
       whereArgs: [data],
     );
-    if (results.isEmpty) {
-      return null;
-    } else {
-      return results.first;
-    }
+    return results.isEmpty ? null : results.first;
   }
 
   // Método para obter todos os pontos
   Future<List<Map<String, dynamic>>> obterTodosPontos() async {
     final dbClient = await db;
-    return dbClient.query('pontos');
+    return await dbClient.query('pontos');
   }
 }

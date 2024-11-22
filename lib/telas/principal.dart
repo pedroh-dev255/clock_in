@@ -26,7 +26,14 @@ class _TelaInicialState extends State<TelaInicial> {
     String data = DateFormat('dd/MM/yyyy').format(DateTime.now());
 
     // Salvando o horário no banco de dados
-    await _dbHelper.adicionarPonto(data, hora, null, null, null);
+    await _dbHelper.adicionarPonto(Ponto(
+      data: data,
+      entrada: hora,
+      saidaIntervalo: null,
+      retornoIntervalo: null,
+      saida: null,
+    ));
+
 
     // Exibindo uma mensagem de confirmação
     showDialog(
