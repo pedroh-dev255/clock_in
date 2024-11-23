@@ -1,5 +1,7 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'dart:convert';
+import 'google_auth.dart';
 
 // Classe para a tabela de pontos
 class Ponto {
@@ -99,6 +101,7 @@ class Configuracoes {
 // Classe DBHelper para gerenciar o banco de dados
 class DBHelper {
   Database? _db;
+  final GoogleDriveSync _googleDriveSync = GoogleDriveSync();
 
   Future<Database> get db async {
     if (_db == null) {
@@ -137,6 +140,7 @@ class DBHelper {
             horas_semanais INTEGER NOT NULL
           )
         ''');
+        await syncWithGoogleDrive(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -153,9 +157,24 @@ class DBHelper {
               horas_semanais INTEGER NOT NULL
             )
           ''');
+          await syncWithGoogleDrive(db);
         }
       },
     );
+  }
+
+  Future<void> syncWithGoogleDrive(Database db) async {
+    // Obter todos os pontos registrados
+    final pontos = await db.query('pontos');
+    final pontosJson = pontos.map((e) => json.encode(e)).toList();
+    await _googleDriveSync.uploadData('pontos.json', pontosJson.join(','));
+
+    // Obter configurações e sincronizar
+    final configuracoes = await db.query('configuracoes');
+    if (configuracoes.isNotEmpty) {
+      final configuracaoJson = json.encode(configuracoes.first);
+      await _googleDriveSync.uploadData('configuracoes.json', configuracaoJson);
+    }
   }
 
   // Métodos para a tabela de pontos
@@ -176,6 +195,7 @@ class DBHelper {
       where: 'data = ?',
       whereArgs: [ponto.data],
     );
+    await syncWithGoogleDrive(dbClient);
   }
 
   Future<Map<String, dynamic>?> obterPontoPorData(String data) async {
@@ -185,6 +205,7 @@ class DBHelper {
       where: 'data = ?',
       whereArgs: [data],
     );
+    await syncWithGoogleDrive(dbClient);  
     return results.isEmpty ? null : results.first;
   }
 

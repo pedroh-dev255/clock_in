@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-
+import 'package:google_sign_in/google_sign_in.dart';
+import 'db_helper.dart';
 import 'telas/principal.dart'; // Importando a TelaInicial
 import 'telas/manual.dart'; // Importando a TelaManual
 import 'telas/registros.dart';
 import 'telas/configuracoes.dart'; // Importando a Tela de Configurações
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  //await initializeDateFormatting('pt_BR', null);
+  final dbHelper = DBHelper();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+  scopes: <String>['https://www.googleapis.com/auth/drive.file'], // Corrigido para List<String>
+  );
+  await dbHelper.syncWithGoogleDrive(await dbHelper.db);
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -31,7 +36,7 @@ class MyApp extends StatelessWidget {
         const Locale('pt', ''), // Português
         const Locale('en', ''), // Inglês
       ],
-      home: TelaPrincipal(), // Alterando para a TelaPrincipal com PageView
+      home: const TelaPrincipal(), // Alterando para a TelaPrincipal com PageView
     );
   }
 }
@@ -46,6 +51,7 @@ class TelaPrincipal extends StatefulWidget {
 class _TelaPrincipalState extends State<TelaPrincipal> {
   int _currentIndex = 0; // Para controlar o índice da tela
   final PageController _pageController = PageController(); // Controlador para o PageView
+  final GoogleSignIn _googleSignIn = GoogleSignIn(); // Instância do GoogleSignIn
 
   // Função para navegar pelas telas usando o índice
   void _onItemTapped(int index) {
@@ -59,12 +65,38 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
     );
   }
 
+  Future<void> _selecionarContaGoogle() async {
+    try {
+      // Solicita ao usuário que faça login com sua conta do Google
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser != null) {
+        print("Conta selecionada: ${googleUser.displayName}");
+        
+        // Obtém as credenciais de autenticação
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+        if (googleAuth.accessToken != null) {
+          // Aqui você pode usar o token de acesso para autenticar com o Google Drive
+          print("Token de acesso: ${googleAuth.accessToken}");
+        } else {
+          print("Erro: Token de acesso não disponível.");
+        }
+      } else {
+        print("Nenhuma conta foi selecionada.");
+      }
+    } catch (error) {
+      print("Erro ao selecionar conta do Google: $error");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Controle de Ponto'),
         actions: [
+          // Botão de configurações
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
@@ -73,6 +105,11 @@ class _TelaPrincipalState extends State<TelaPrincipal> {
                 MaterialPageRoute(builder: (context) => TelaConfiguracoes()),
               );
             },
+          ),
+          // Botão para selecionar a conta do Google
+          IconButton(
+            icon: const Icon(Icons.account_circle),
+            onPressed: _selecionarContaGoogle, // Lógica para selecionar a conta
           ),
         ],
       ),
